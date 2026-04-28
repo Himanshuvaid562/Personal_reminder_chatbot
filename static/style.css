@@ -1,0 +1,116 @@
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0f2027;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* Chat UI */
+.chat-container {
+    width: 400px;
+    height: 600px;
+    background: #111;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+}
+
+.chat-header {
+    padding: 15px;
+    background: #00c6ff;
+    color: black;
+}
+
+.chat-box {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.msg {
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 10px;
+}
+
+.user {
+    background: #0072ff;
+    align-self: flex-end;
+}
+
+.bot {
+    background: #333;
+}
+
+.input-area {
+    display: flex;
+}
+
+input {
+    flex: 1;
+    padding: 10px;
+}
+
+button {
+    padding: 10px;
+    cursor: pointer;
+}
+
+/* Quick buttons */
+.quick-actions {
+    display: flex;
+    justify-content: space-around;
+}
+
+.quick-actions button {
+    background: #00c6ff;
+}
+
+/* Alarm popup */
+.alarm-box {
+    position: fixed;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: black;
+    color: white;
+    padding: 20px;
+    border: 2px solid cyan;
+    display: none;
+}
+
+.snooze-buttons {
+    display: flex;
+    justify-content: space-around;
+    margin: 10px 0;
+}
+
+.snooze-buttons button {
+    background: orange;
+    color: black;
+    border: none;
+    padding: 8px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.notif-prompt {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: orange;
+    color: black;
+    padding: 10px 15px;
+    border-radius: 10px;
+    z-index: 999;
+    font-size: 14px;
+}
+
+.chat-header {
+    font-family: 'Orbitron', sans-serif;
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neural Bot</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+<div id="notifPrompt" class="notif-prompt" style="display:none;">
+    🔔 Notifications are disabled
+    <button onclick="enableNotifications()">Enable</button>
+</div>
+<div class="chat-container">
+
+    <div class="chat-header">
+        ⚡ NEURAL BOT
+        <span>ONLINE</span>
+    </div>
+
+    <div id="chat" class="chat-box">
+        <div class="bot msg">System ready.</div>
+    </div>
+
+    <!-- Quick buttons -->
+    <div class="quick-actions">
+        <button onclick="quickCommand('add reminder')">➕ Add</button>
+        <button onclick="quickCommand('show reminders')">📋 Show</button>
+    </div>
+
+    <div class="input-area">
+        <input id="msg" placeholder="Enter command...">
+        <button id="sendBtn">➤</button>
+    </div>
+
+</div>
+
+<!-- Alarm popup -->
+<div id="alarmBox" class="alarm-box">
+    <h3>⏰ Reminder</h3>
+    <p id="alarmText"></p>
+
+    <div class="snooze-buttons">
+        <button onclick="snoozeAlarm(5)">😴 5 min</button>
+        <button onclick="snoozeAlarm(10)">😴 10 min</button>
+        <button onclick="snoozeAlarm(15)">😴 15 min</button>
+    </div>
+
+    <button onclick="stopAlarm()">❌ Stop</button>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>

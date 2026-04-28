@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 from dotenv import load_dotenv
+import pytz
 import os
 import re
 
@@ -9,6 +10,9 @@ import re
 load_dotenv()
 
 app = Flask(__name__)
+
+tz = pytz.timezone("Asia/Kolkata")
+now = datetime.now(tz).strftime("%H:%M")
 
 # MongoDB connection
 try:

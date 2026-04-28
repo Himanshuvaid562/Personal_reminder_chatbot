@@ -139,9 +139,15 @@ def chat():
 
 @app.route("/check_reminder")
 def check_reminder():
-    now = datetime.now().strftime("%H:%M")
+    from datetime import datetime
+    import pytz
 
-    reminder = reminders_collection.find_one({"time": now})
+    tz = pytz.timezone("Asia/Kolkata")
+    now = datetime.now(tz).strftime("%H:%M")
+
+    reminder = reminders_collection.find_one({
+        "time": {"$lte": now}
+    })
 
     if reminder:
         reminders_collection.delete_one({"_id": reminder["_id"]})

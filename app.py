@@ -4,18 +4,15 @@ from pymongo.errors import ServerSelectionTimeoutError, ConfigurationError
 from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from dotenv import load_dotenv
-import threading
-import time
-import os
-import sys
+import os, sys
 
 load_dotenv()
-
 app = Flask(__name__)
 
+# ── MongoDB ────────────────────────────────────
 MONGO_URI = os.environ.get("MONGO_URI")
 if not MONGO_URI:
-    print("❌ MONGO_URI not set in .env"); sys.exit(1)
+    print("❌ MONGO_URI not set"); sys.exit(1)
 
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
@@ -27,7 +24,6 @@ except Exception as e:
 db            = client["neuralDB"]
 reminders_col = db["reminders"]
 history_col   = db["chat_history"]
-triggered_col = db["triggered"]   # shared across processes via DB
 
 user_state = {"step": None, "task": None, "session_id": None}
 
@@ -35,17 +31,13 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-# ══════════════════════════════════════
-#  PAGES
-# ══════════════════════════════════════
+# ── Pages ──────────────────────────────────────
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# ══════════════════════════════════════
-#  CHAT
-# ══════════════════════════════════════
+# ── Chat ───────────────────────────────────────
 @app.route("/chat", methods=["POST"])
 def chat():
     global user_state
@@ -73,7 +65,11 @@ def _process(msg, session_id):
     if user_state["step"] == "time":
         try:
             datetime.strptime(msg, "%H:%M")
-            reminders_col.insert_one({"task": user_state["task"], "time": msg, "created_at": _now()})
+            reminders_col.insert_one({
+                "task": user_state["task"],
+                "time": msg,
+                "created_at": _now()
+            })
             task = user_state["task"]
             user_state = {"step": None, "task": None, "session_id": None}
             return f"✅ Reminder set! I'll alert you at **{msg}** for: *{task}*"
@@ -107,9 +103,7 @@ def _save_msg(session_id, role, text):
     )
 
 
-# ══════════════════════════════════════
-#  REMINDERS CRUD
-# ══════════════════════════════════════
+# ── Reminders CRUD ─────────────────────────────
 @app.route("/get_reminders")
 def get_reminders():
     try:
@@ -134,34 +128,41 @@ def snooze_reminder():
     except Exception as e: return jsonify(success=False, error=str(e))
 
 
-# ══════════════════════════════════════
-#  ALARM POLLING  — DB-backed so it
-#  works across Flask's 2 processes
-# ══════════════════════════════════════
+# ── THE KEY FIX: no background thread ─────────
+# The frontend polls this every 5s.
+# Each poll checks MongoDB directly for due reminders.
+# Works on Render, gunicorn multi-worker, serverless — everywhere.
 @app.route("/check_triggered")
 @app.route("/check_reminder")
 def check_triggered():
     try:
-        docs = list(triggered_col.find())
-        if not docs:
-            return jsonify(reminders=[])
-        triggered_col.delete_many({})
-        return jsonify(reminders=[{"id": str(d["_id"]), "task": d["task"], "time": d["time"]} for d in docs])
+        now  = datetime.now().strftime("%H:%M")
+        due  = list(reminders_col.find({"time": now}))
+        result = []
+        for r in due:
+            result.append({"id": str(r["_id"]), "task": r["task"], "time": r["time"]})
+            reminders_col.delete_one({"_id": r["_id"]})
+            print(f"🔔 TRIGGERED → {r['task']} at {now}")
+        return jsonify(reminders=result)
     except Exception as e:
         print(f"[check_triggered error] {e}")
         return jsonify(reminders=[])
 
 
-# Instant test — open in browser to verify modal+sound works
+# ── Test endpoint ──────────────────────────────
 @app.route("/test_alarm")
 def test_alarm():
-    triggered_col.insert_one({"task": "🧪 Test alarm!", "time": datetime.now().strftime("%H:%M"), "created_at": _now()})
-    return "<h2>✅ Done! Switch to the app tab — modal should appear in ~3 seconds.</h2>"
+    # Insert a reminder due RIGHT NOW so the next poll fires it
+    now = datetime.now().strftime("%H:%M")
+    reminders_col.insert_one({
+        "task": "🧪 Test alarm — it works!",
+        "time": now,
+        "created_at": _now()
+    })
+    return "<h2>✅ Reminder inserted for now! Switch to app tab — alarm fires within 5 seconds.</h2>"
 
 
-# ══════════════════════════════════════
-#  HISTORY
-# ══════════════════════════════════════
+# ── History ────────────────────────────────────
 @app.route("/get_sessions")
 def get_sessions():
     try:
@@ -181,46 +182,6 @@ def get_session(session_id):
         return jsonify(messages=[{"role": m["role"], "text": m["text"]} for m in doc.get("messages",[])])
     except: return jsonify(messages=[])
 
-
-# ══════════════════════════════════════
-#  BACKGROUND CHECKER
-#  Writes to triggered_col (MongoDB)
-#  so the Flask request process can
-#  read it — no shared memory needed
-# ══════════════════════════════════════
-def reminder_checker():
-    print("🔁 reminder_checker thread STARTED")
-    fired_this_minute = set()
-
-    while True:
-        try:
-            now = datetime.now().strftime("%H:%M")
-            due = list(reminders_col.find({"time": now}))
-
-            for r in due:
-                rid = str(r["_id"])
-                if rid in fired_this_minute:
-                    continue
-                fired_this_minute.add(rid)
-                triggered_col.insert_one({"task": r["task"], "time": r["time"], "created_at": _now()})
-                reminders_col.delete_one({"_id": r["_id"]})
-                print(f"🔔 FIRED → {r['task']} at {now}")
-
-            # Reset each new minute
-            current_min = datetime.now().strftime("%H:%M")
-            if not any(r["time"] == current_min for r in due):
-                fired_this_minute.clear()
-
-        except Exception as e:
-            print(f"[checker error] {e}")
-
-        time.sleep(10)
-
-
-# Always start — gunicorn MUST use --workers 1 so this thread
-# lives in the same process as HTTP handlers
-threading.Thread(target=reminder_checker, daemon=True).start()
-print("🔁 Reminder checker started.")
 
 if __name__ == "__main__":
     app.run(debug=False, port=5000, use_reloader=False)

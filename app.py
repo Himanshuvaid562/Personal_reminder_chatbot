@@ -5,9 +5,13 @@ from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from dotenv import load_dotenv
 import os, sys
+import pytz
 
 load_dotenv()
 app = Flask(__name__)
+
+tz=pytz.timezone("Asia/Kolkata")
+now=datetime.now(tz).strftime("%H:%M")
 
 # ── MongoDB ────────────────────────────────────
 MONGO_URI = os.environ.get("MONGO_URI")

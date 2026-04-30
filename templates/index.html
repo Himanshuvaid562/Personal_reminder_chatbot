@@ -2,56 +2,137 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Neural Bot</title>
-
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural — AI Reminder Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
-<div id="notifPrompt" class="notif-prompt" style="display:none;">
-    🔔 Notifications are disabled
-    <button onclick="enableNotifications()">Enable</button>
-</div>
-<div class="chat-container">
 
+<!-- ── ALARM MODAL ──────────────────────────────────────── -->
+<div id="alarmModal" class="modal-overlay hidden">
+  <div class="modal-glass">
+    <div class="modal-pulse-ring"></div>
+    <div class="modal-icon">🔔</div>
+    <h2 class="modal-title">Reminder</h2>
+    <p class="modal-task" id="modalTask">—</p>
+    <p class="modal-time" id="modalTime">—</p>
+    <div class="modal-actions">
+      <button class="btn-snooze" onclick="snooze(5)">Snooze 5m</button>
+      <button class="btn-snooze" onclick="snooze(10)">Snooze 10m</button>
+      <button class="btn-snooze" onclick="snooze(15)">Snooze 15m</button>
+      <button class="btn-stop" onclick="stopAlarm()">✕ Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP SHELL ─────────────────────────────────────────── -->
+<div class="app">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span class="brand-name">Neural</span>
+    </div>
+
+    <button class="new-chat-btn" onclick="newSession()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Chat
+    </button>
+
+    <div class="sidebar-section-label">Recent</div>
+    <div id="sessionList" class="session-list"></div>
+
+    <div class="sidebar-section-label" style="margin-top:auto">Quick Actions</div>
+    <div class="quick-chips">
+      <button class="chip" onclick="quick('add reminder')">＋ Add Reminder</button>
+      <button class="chip" onclick="quick('show reminders')">📋 Show All</button>
+      <button class="chip" onclick="quick('help')">💡 Help</button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="avatar-row">
+        <div class="avatar">N</div>
+        <div>
+          <div class="avatar-name">Neural AI</div>
+          <div class="avatar-sub">v2.0 · Active</div>
+        </div>
+        <span class="status-dot"></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER CHAT -->
+  <main class="chat-pane">
     <div class="chat-header">
-        ⚡ NEURAL BOT
-        <span>ONLINE</span>
+      <div>
+        <h1 class="chat-title">Your AI Reminder Assistant</h1>
+        <p class="chat-sub">Type a message or use quick actions →</p>
+      </div>
+      <div class="mic-wrap">
+        <button class="mic-btn" id="micBtn" onclick="toggleVoice()" title="Voice Input">
+          <svg id="micIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+      </div>
     </div>
 
-    <div id="chat" class="chat-box">
-        <div class="bot msg">System ready.</div>
+    <!-- Messages -->
+    <div id="chatBox" class="chat-box">
+      <div class="welcome-card">
+        <div class="welcome-glow"></div>
+        <div class="welcome-emoji">🧠</div>
+        <h2>Hello! I'm Neural.</h2>
+        <p>Your intelligent reminder assistant. I can set, manage, and alert you about reminders in natural conversation.</p>
+        <div class="welcome-chips">
+          <button onclick="quick('add reminder')">＋ Set a Reminder</button>
+          <button onclick="quick('show reminders')">📋 My Reminders</button>
+          <button onclick="quick('help')">💡 What can you do?</button>
+        </div>
+      </div>
     </div>
 
-    <!-- Quick buttons -->
-    <div class="quick-actions">
-        <button onclick="quickCommand('add reminder')">➕ Add</button>
-        <button onclick="quickCommand('show reminders')">📋 Show</button>
+    <!-- Input bar -->
+    <div class="input-bar">
+      <div class="suggestions" id="suggestions">
+        <button onclick="quick('add reminder')">＋ Add Reminder</button>
+        <button onclick="quick('show reminders')">📋 Show All</button>
+        <button onclick="quickTask('Study break')">📚 Study</button>
+        <button onclick="quickTask('Drink water')">💧 Hydrate</button>
+        <button onclick="quickTask('Workout')">🏋️ Workout</button>
+        <button onclick="quickTask('Take medicine')">💊 Medicine</button>
+        <button onclick="quickTask('Team meeting')">📅 Meeting</button>
+      </div>
+      <div class="input-row">
+        <textarea id="msgInput" placeholder="Message Neural…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" onclick="send()" id="sendBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="panel">
+    <div class="panel-header">
+      <h3 class="panel-title">Reminders</h3>
+      <span class="reminder-count" id="reminderCount">0</span>
     </div>
 
-    <div class="input-area">
-        <input id="msg" placeholder="Enter command...">
-        <button id="sendBtn">➤</button>
+    <div id="reminderList" class="reminder-list">
+      <div class="empty-state">
+        <div class="empty-icon">🗓</div>
+        <p>No reminders yet</p>
+        <small>Start by typing "add reminder"</small>
+      </div>
     </div>
+  </aside>
 
 </div>
 
-<!-- Alarm popup -->
-<div id="alarmBox" class="alarm-box">
-    <h3>⏰ Reminder</h3>
-    <p id="alarmText"></p>
 
-    <div class="snooze-buttons">
-        <button onclick="snoozeAlarm(5)">😴 5 min</button>
-        <button onclick="snoozeAlarm(10)">😴 10 min</button>
-        <button onclick="snoozeAlarm(15)">😴 15 min</button>
-    </div>
-
-    <button onclick="stopAlarm()">❌ Stop</button>
-</div>
-
-<script src="{{ url_for('static', filename='script.js') }}"></script>
-
+<script src="/static/script.js"></script>
 </body>
 </html>

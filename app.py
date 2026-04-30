@@ -217,18 +217,10 @@ def reminder_checker():
         time.sleep(10)
 
 
-# Start thread ONCE — use_reloader spawns 2 procs in debug mode,
-# only the child (WERKZEUG_RUN_MAIN=true) should run the thread
-if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("FLASK_ENV") == "production":
-    t = threading.Thread(target=reminder_checker, daemon=True)
-    t.start()
-else:
-    # When not using reloader (e.g. python app.py directly without debug)
-    # start unconditionally
-    if not app.debug:
-        t = threading.Thread(target=reminder_checker, daemon=True)
-        t.start()
+# Always start — gunicorn MUST use --workers 1 so this thread
+# lives in the same process as HTTP handlers
+threading.Thread(target=reminder_checker, daemon=True).start()
+print("🔁 Reminder checker started.")
 
 if __name__ == "__main__":
-    # use_reloader=False → single process → thread always starts → alarm always works
-    app.run(debug=True, port=5000, use_reloader=False)
+    app.run(debug=False, port=5000, use_reloader=False)
